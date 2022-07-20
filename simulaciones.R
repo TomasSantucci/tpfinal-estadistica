@@ -59,3 +59,32 @@ e3b <- function(n) {
   
   n_senales
 }
+
+e4a <- function(k, s, p) {
+  trayectoria <- c()
+  while (k < s & k > 0) {
+    exito <- rbinom(1,1,p)
+    
+    if (exito == 1) {
+      k <- k + 1
+    } else {
+      k <- k - 1
+    }
+    
+    trayectoria <- c(trayectoria, k)
+  }
+  trayectoria
+}
+
+e4b <- function(cant, k, s, p) {
+  ruinas <- 0
+  i <- 0
+  while (i < cant) {
+    res <- tail(e4a(k, s, p), n = 1)
+    if (res == 0) {
+      ruinas <- ruinas + 1
+    }
+    i <- i + 1
+  }
+  ruinas / cant
+}

@@ -192,6 +192,8 @@ mc <- new("markovchain", transitionMatrix = transitionMat)
 plot(mc)
 hittingProbabilities(mc)
 is.irreducible(mc)
+period(mc)
+steadyStates(mc)
 recurrentStates(mc)
 # la probabilidad de visitar cualquier pagina arrancando de cualquiera es 1
 # porque la mc es irreducible, todos los estados son alcanzables para todos
@@ -245,9 +247,21 @@ t <- eventTimes(0.1, 10)
 ladderPlot(t, 10)
 
 # 8c
-t <- eventTimes(0.1, 100)
+
+lamda <- 0.1
+len <- 10000
+t <- eventTimes(lamda, len)
 d <- distanceVariable(t)
+
+myDist <- function(x) {
+
+  qexp(x, lamda)  
+}
+
 # falta hacer un mejor analisis de d
 # la esperanza de d es aprox 1/lambda
 mean(d)
+histogram(d)
+qqmath(d, distribution = myDist)
 
+       

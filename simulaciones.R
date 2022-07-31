@@ -15,6 +15,8 @@ e1 <- function(variables, samples) {
     ncol = samples)
 
   data <- apply(tabla, 2, sum)
+  mean <- variables * 1 / 2
+  sd <- sqrt(variables * 1 / 12)
  
   # se asemeja a una normal de esperanza 20 y desvio estandar 1.82 por el TCDL 
   histogram(
@@ -26,7 +28,7 @@ e1 <- function(variables, samples) {
         dmath = dnorm,
         col = "black",
         lwd = 2,
-        args = list(mean = 20,sd = 1.82))
+        args = list(mean, sd))
     })
 }
 
@@ -45,21 +47,25 @@ ej2Matrix <- function(p) {
 ej2 <- function(repetitions, p) {
   P <- ej2Matrix(p)
   mc <- new("markovchain", transitionMatrix = P)
-  replicate(repetitions, simularTrayectoria(mc))
+  replicate(
+    repetitions,
+    length(simulateMC(mc, "1", c("4"))) - 1)
 }
 
-simularTrayectoria <- function(mc) {
-  pasos <- 0
-  sim <- "1"
-  while (sim != "4") {
-    pasos <- pasos + 1
-    sim <- rmarkovchain(n = 1, object = mc, t0 = sim)
+simulateMC <- function(mc, initial, tfs) {
+  step <- initial
+  steps <- c(step)
+  while (!(step %in% tfs)) {
+    step <- rmarkovchain(1, mc, t0 = step)
+    steps <- c(steps, step)
   }
-  pasos
+  steps
 }
 
 p <- 0.6
 
+P <- ej2Matrix(p)
+mc <- new("markovchain", transitionMatrix = P)
 # esperanza estimada de la variable:
 mean(ej2(1000, p))
 
@@ -95,42 +101,64 @@ ej3b <- function(n,p) {
 
 # Ejercicio 4
 
-ej4MC <- function(s, p) {
-  n <- c(1, rep(0,s-1))
-  for (i in 2:s) {
-    if (i < s) {
-      r <- rep(0, s)
-      r[i-1] = 1-p
-      r[i+1] = p
-    } else {
-      r <- c(rep(0,s-1), 1)
-    }
-    n <- c(n,r)
+s <- 19
+k <- (s + 1) / 2
+absorbents <- c("1", toString(s))
+
+zeroes <- function(n) {
+  rep(0, n)
+}
+
+ej4Matrix <-function(p) {
+  n <- c(1, zeroes(s - 1))
+  
+  for (i in 2:(s-1)) {
+    r <- zeroes(s)
+    r[i-1] = 1-p
+    r[i+1] = p
+    n <- c(n, r)
   }
   
-  new("markovchain", transitionMatrix = squarem(n))
-}
-
-trayectoria <- function(mc, t0) {
-  last <- tail(states(mc), n = 1)
+  n <- c(n, zeroes(s - 1), 1)
   
-  state <- t0
-  while ((state != "1") & (state != last))
-    state <- rmarkovchain(1, object = mc, t0 = state)
-  state
+  squarem(n)
 }
 
-ej4b <- function(repetitions, mc, t0) {
-  r <- replicate(repetitions, trayectoria(mc, t0))
-  length(r[r == "1"]) / repetitions
+transitionToRecurrentProbabilities <- function(mc, size) {
+  mc <- canonicForm(mc)
+  recurrent <- length(recurrentStates(mc))
+  
+  Q <- mc[(recurrent + 1):size, (recurrent + 1):size]
+  B <- mc[(recurrent + 1):size, 1:recurrent]
+  
+  I <- diag(size - recurrent)
+  S <- solve(I - Q)
+  
+  S %*% B
 }
 
-mc <- ej4MC(50, 0.6)
-ej4b(1000, mc, "5")
-absorptionProbabilities(mc)
-
-# falta hacerlo de manera teorica
-
+ej4a <- list()
+ej4b <- c()
+ej4bextra <- c()
+for (p in c(0.4, 0.5, 0.6)) {
+  matrix <- ej4Matrix(p)
+  mc <- new("markovchain", transitionMatrix = matrix)
+  
+  # trayectorias de ejemplo
+  ej4a <- append(ej4a, list(simulateMC(mc, toString(k), absorbents)))
+  
+  # forma empírica
+  r <- replicate(1000, tail(simulateMC(mc, toString(k), absorbents), 1))
+  ej4b <- c(ej4b, length(r[r == "1"]) / 1000)
+  
+  # forma teórica
+  G <- transitionToRecurrentProbabilities(mc, size = s)
+  
+  ej4bextra <- c(ej4bextra, G[k - 1, 1])
+}
+ej4a
+ej4b
+ej4bextra
 
 # Ejercicio 5
 
@@ -151,20 +179,11 @@ k <- 20
 mc <- new("markovchain", transitionMatrix = makeP(k))
 
 # simulacion del proceso
-rmarkovchain(100, object = mc, t0 = "10")
+rmarkovchain(100, mc, t0 = "10")
 
-# probabilidad de caer en los estados absorbentes
-absorptionProbabilities(mc)
-
-# manualmente es N*R
-k <- 20
+# calculado teóricamente
 mc <- new("markovchain", transitionMatrix = makeP(k))
-mc <- canonicForm(mc)
-Q <- mc[2:k+1, 2:k+1]
-R <- mc[2:k+1, 1:2]
-I <- diag(k-1)
-N <- solve(I-Q)
-N %*% R
+transitionToRecurrentProbabilities(mc, size = k + 1)
 
 # EJERICIO 6
 

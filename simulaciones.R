@@ -20,7 +20,10 @@ e1 <- function(variables, samples) {
  
   # se asemeja a una normal de esperanza 20 y desvio estandar 1.82 por el TCDL 
   histogram(
+    main = paste("Distribución de la suma de variables uniformes\n", samples, "muestras de tamaño", variables),
     data,
+    xlab = "Suma", ylab = "Densidad",
+    col = 3,
     type = "density",
     panel = function(x, ...) {
       panel.histogram(x, ...)
@@ -32,7 +35,10 @@ e1 <- function(variables, samples) {
     })
 }
 
-e1(40, 10000)
+print(e1(40,10), position=c(0,0.5,0.5,1), more=T)
+print(e1(40,100), position=c(0.5,0.5,1,1), more=T)
+print(e1(40,1000), position=c(0,0,0.5,0.5), more=T)
+print(e1(40,10000), position=c(0.5,0,1,0.5), more=F)
 
 # Ejercicio 2
 
@@ -64,8 +70,6 @@ simulateMC <- function(mc, initial, tfs) {
 
 p <- 0.6
 
-P <- ej2Matrix(p)
-mc <- new("markovchain", transitionMatrix = P)
 # esperanza estimada de la variable:
 mean(ej2(1000, p))
 
@@ -89,13 +93,22 @@ EN[1]
 
 ej3a <- function(p) {
   # El proceso es basicamente un ensayo de bernoulli
-  rbinom(1,1,p)
+  rbinom(1000,1,p)
 }
 
 ej3b <- function(n,p) {
   # El proceso es basicamente una binomial
-  rbinom(1,n,p)
+  rbinom(10000,n,p)
 }
+
+x <- ej3a(0.6)
+porcentaje <- round(sum(x)/1000, digits = 2)
+pie(table(x), col = c(2,4), main = "Porcentajes de éxitos en 1000 ensayos, p=0.6",
+    labels = c(paste("Fallos", 1-porcentaje, "%"), paste("Éxitos", porcentaje, "%")))
+
+y <- ej3b(10,0.5)
+plot(table(y), type='h', lwd = 3, main = "Número de señales incorrectas al momento n=10\nMuestra de tamaño 10000, p=0.5",
+     xlab = "Número de señales incorrectas", ylab = "Frecuencia absoluta")
 
 # ej3c: son las esperanzas y variancias conocidas de bernoulli y binomial
 
@@ -156,7 +169,24 @@ for (p in c(0.4, 0.5, 0.6)) {
   
   ej4bextra <- c(ej4bextra, G[k - 1, 1])
 }
-ej4a
+
+lengths <- c(0,0,0)
+for (i in 1:3) {
+  lengths[i] <- length(unlist(ej4a[i]))
+}
+
+plot(0,19, ylim= c(0,20), xlim = c(0,max(lengths)),
+     xlab = "t", ylab = "Capital",
+     main = "Evolución del capital del jugador")
+
+
+for (i in 1:3) {
+  x <- unlist(ej4a[i])
+  lines(x, type = 'l', lwd = 3, col = i) 
+}
+
+legend("bottomright", legend = c("p=0.4", "p=0.5", "p=0.6"), lwd = 1, col = c(1,2,3))
+
 ej4b
 ej4bextra
 
@@ -176,15 +206,40 @@ makeP <- function(k) {
 }
 
 k <- 20
-mc <- new("markovchain", transitionMatrix = makeP(k))
 
+mc <- new("markovchain", transitionMatrix = makeP(k))
 # simulacion del proceso
-rmarkovchain(100, mc, t0 = "10")
+
+simularproc <- function(mc, t0) {
+  t0 <- t0
+  x <- c(strtoi(t0))
+  while (t0 != "1" && t0 != "21") {
+    t0 <- rmarkovchain(1, mc, t0 = t0)
+    x <- c(x, strtoi(t0)-1)
+  }
+  x
+}
+
+x <- list()
+x <- append(x, list(simularproc(mc, "10")))
+x <- append(x, list(simularproc(mc, "15")))
+x <- append(x, list(simularproc(mc, "5")))
+
+length <- max(length(unlist(x[1])), length(unlist(x[2])), length(unlist(x[3])))
+
+plot(-1,0, type='l', ylim = c(0,20), xlim = c(0,length),
+     main = "Evolución del número de alelos A",
+     xlab = "t", ylab = "Número de alelos A")
+for (i in 1:3) {
+  lines(unlist(x[i]), col = i, lwd = 3)
+}
 
 # calculado teóricamente
 mc <- new("markovchain", transitionMatrix = makeP(k))
-transitionToRecurrentProbabilities(mc, size = k + 1)
-
+x <- transitionToRecurrentProbabilities(mc, size = k + 1)
+colnames(x) <- c(0,20)
+rownames(x) <- 1:19
+x
 # EJERICIO 6
 
 m <- squarem(c(
@@ -235,7 +290,13 @@ ladderPlot <- function(t, length) {
   x <- c(0, t, length)
   y <- 0:(length(x) - 1)
   y[length(y)] <- length(y) - 2
-  plot(x, y, type = "s", xlab = "longitud del tubo en km", ylab = "numero de defectos")
+  
+  max_height <- y[length(y)]
+  if (max_height == 0) {
+    max_height <- 1
+  }
+  plot(x, y, type = "s", xlab = "Longitud del tubo en km", ylab = "N° de defectos encontrados",
+       main = "Trayectoria del proceso", ylim = c(0,max_height), lwd = 2)
 }
 
 distanceVariable <- function(t) {
@@ -252,7 +313,7 @@ ladderPlot(t, 10)
 # 8c
 
 lambda <- 0.1
-len <- 10000
+len <- 5000
 
 t <- eventTimes(lambda, len)
 d <- distanceVariable(t)
@@ -261,8 +322,21 @@ myDist <- function(x) {
   qexp(x, lambda)
 }
 
-# falta hacer un mejor analisis de d
-# la esperanza de d es aprox 1/lambda
 mean(d)
-histogram(d)
+histogram(d,
+          main = "Distribución de la distancia entre defectos\n Proceso de 5000km con tasa 0.1 por km",
+          xlab = "Distancia en km",
+          ylab = "Densidad",
+          type = "density",
+          col = 3,
+          panel = function(x, ...) {
+            panel.histogram(x, ...)
+            panel.mathdensity(
+              dmath = dexp,
+              col = "black",
+              lwd = 2,
+              args = list(0.1))
+          }
+)
+
 qqmath(d, distribution = myDist)
